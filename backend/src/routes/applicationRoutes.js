@@ -7,6 +7,7 @@ const {
   getApplicationById,
   withdrawApplication,
   updateApplicationStatus,
+  getRecruiterAnalytics,
 } = require("../controllers/applicationController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -31,19 +32,22 @@ router.get("/my", authMiddleware, getMyApplications);
 // =========================
 router.get("/received", authMiddleware, getReceivedApplications);
 
+// Recruiter Analytics
+router.get("/recruiter/analytics", authMiddleware, getRecruiterAnalytics);
+
 // =========================
 // GET SINGLE APPLICATION
 // GET /api/applications/:id
 // =========================
 router.get("/:id", authMiddleware, getApplicationById);
 
+// Update application status
+router.put("/:id/status", authMiddleware, updateApplicationStatus);
+
 // =========================
 // WITHDRAW APPLICATION
 // DELETE /api/applications/:id
 // =========================
 router.delete("/:id", authMiddleware, withdrawApplication);
-
-// Update application status
-router.put("/:id/status", authMiddleware, updateApplicationStatus);
 
 module.exports = router;

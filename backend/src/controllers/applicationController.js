@@ -293,6 +293,99 @@ const withdrawApplication = async (req, res) => {
 };
 
 // =========================
+// RECRUITER ANALYTICS
+// =========================
+const getRecruiterAnalytics = async (req, res) => {
+  try {
+    // Recruiter ke jobs find karo
+    const jobs = await Job.find({
+      postedBy: req.user.id,
+    }).select("_id title company");
+
+    const jobIds = jobs.map((job) => job._id);
+
+    // Agar recruiter ne abhi koi job post nahi ki
+    if (jobIds.length === 0) {
+      return res.status(200).json({
+        message: "Recruiter analytics fetched successfully",
+        analytics: {
+          totalJobs: 0,
+          totalApplications: 0,
+          applied: 0,
+          shortlisted: 0,
+          interview: 0,
+          selected: 0,
+          rejected: 0,
+          jobWiseApplications: [],
+        },
+      });
+    }
+
+    // All applications received for recruiter's jobs
+    const applications = await Application.find({
+      job: { $in: jobIds },
+    }).select("job status");
+
+    // Status counts
+    const totalApplications = applications.length;
+
+    const applied = applications.filter(
+      (application) => application.status === "Applied",
+    ).length;
+
+    const shortlisted = applications.filter(
+      (application) => application.status === "Shortlisted",
+    ).length;
+
+    const interview = applications.filter(
+      (application) => application.status === "Interview",
+    ).length;
+
+    const selected = applications.filter(
+      (application) => application.status === "Selected",
+    ).length;
+
+    const rejected = applications.filter(
+      (application) => application.status === "Rejected",
+    ).length;
+
+    // Job-wise application count
+    const jobWiseApplications = jobs.map((job) => {
+      const jobApplications = applications.filter(
+        (application) => application.job.toString() === job._id.toString(),
+      );
+
+      return {
+        jobId: job._id,
+        title: job.title,
+        company: job.company,
+        applications: jobApplications.length,
+      };
+    });
+
+    res.status(200).json({
+      message: "Recruiter analytics fetched successfully",
+      analytics: {
+        totalJobs: jobs.length,
+        totalApplications,
+        applied,
+        shortlisted,
+        interview,
+        selected,
+        rejected,
+        jobWiseApplications,
+      },
+    });
+  } catch (error) {
+    console.error("Recruiter analytics error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch recruiter analytics",
+    });
+  }
+};
+
+// =========================
 // EXPORT CONTROLLERS
 // =========================
 module.exports = {
@@ -302,4 +395,5 @@ module.exports = {
   getApplicationById,
   updateApplicationStatus,
   withdrawApplication,
+  getRecruiterAnalytics,
 };
