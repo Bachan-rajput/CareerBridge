@@ -1,6 +1,7 @@
 const Groq = require("groq-sdk");
 const User = require("../models/User");
 const Job = require("../models/Job");
+const Application = require("../models/Application");
 const { PDFParse } = require("pdf-parse");
 
 const groq = new Groq({
@@ -354,8 +355,162 @@ Rules:
   }
 };
 
+// =========================
+// AI CANDIDATE MATCH
+// =========================
+const getCandidateMatch = async (req, res) => {
+  try {
+    const { applicationId } = req.body;
+
+    if (!applicationId) {
+      return res.status(400).json({
+        message: "Application ID is required",
+      });
+    }
+
+    // Get application with job and candidate
+    const application = await Application.findById(applicationId)
+      .populate("job")
+      .populate("applicant", "-password");
+
+    if (!application) {
+      return res.status(404).json({
+        message: "Application not found",
+      });
+    }
+
+    const job = application.job;
+    const candidate = application.applicant;
+
+    if (!job || !candidate) {
+      return res.status(404).json({
+        message: "Job or candidate information not found",
+      });
+    }
+
+    // Only the recruiter who posted the job can analyze the candidate
+    if (job.postedBy.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        message: "You are not authorized to analyze this candidate",
+      });
+    }
+
+    // Only recruiters can use this feature
+    const recruiter = await User.findById(req.user.id);
+
+    if (!recruiter || recruiter.role !== "recruiter") {
+      return res.status(403).json({
+        message: "Only recruiters can use AI Candidate Match",
+      });
+    }
+
+    const candidateSkills = candidate.profile?.skills || [];
+
+    const prompt = `
+You are an AI Candidate Matching Assistant for a professional recruitment platform.
+
+Analyze the candidate against the requirements of the job they applied for.
+
+CANDIDATE:
+Name: ${candidate.name}
+Skills: ${candidateSkills.join(", ") || "No skills provided"}
+Resume: ${candidate.profile?.resume || "Not provided"}
+Application Cover Letter: ${application.coverLetter || "Not provided"}
+
+JOB:
+Title: ${job.title}
+Company: ${job.company}
+Description: ${job.description}
+Required Skills: ${job.skills?.join(", ") || "Not specified"}
+Experience: ${job.experience || "Not specified"}
+Job Type: ${job.jobType || "Not specified"}
+
+Return ONLY valid JSON in this exact structure:
+
+{
+  "matchScore": 0,
+  "matchedSkills": [],
+  "missingSkills": [],
+  "strengths": [],
+  "recommendation": "",
+  "reason": ""
+}
+
+Rules:
+- matchScore must be a number between 0 and 100.
+- matchedSkills should contain relevant skills the candidate has that match the job.
+- missingSkills should contain important job skills the candidate does not appear to have.
+- strengths should contain 2 to 4 relevant candidate strengths.
+- recommendation should be a short practical recommendation for the recruiter.
+- reason should briefly explain the match score using the available candidate and job information.
+- Do not make assumptions about skills or experience that are not present in the provided data.
+- Do not make the final hiring decision.
+- Do not include markdown.
+- Do not include code fences.
+`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "openai/gpt-oss-20b",
+      temperature: 0.2,
+    });
+
+    const aiResponse = completion.choices[0]?.message?.content;
+
+    if (!aiResponse) {
+      return res.status(500).json({
+        message: "AI did not return a response",
+      });
+    }
+
+    let result;
+
+    try {
+      result = JSON.parse(aiResponse);
+    } catch (parseError) {
+      console.error("AI Candidate Match JSON parse error:", parseError);
+      console.error("AI Response:", aiResponse);
+
+      return res.status(500).json({
+        message: "AI returned an invalid response",
+      });
+    }
+
+    res.status(200).json({
+      message: "AI Candidate Match generated successfully",
+      application: {
+        id: application._id,
+        status: application.status,
+      },
+      candidate: {
+        id: candidate._id,
+        name: candidate.name,
+        email: candidate.email,
+      },
+      job: {
+        id: job._id,
+        title: job.title,
+        company: job.company,
+      },
+      result,
+    });
+  } catch (error) {
+    console.error("AI Candidate Match error:", error);
+
+    res.status(500).json({
+      message: "Failed to generate AI Candidate Match",
+    });
+  }
+};
+
 module.exports = {
   getJobMatch,
   analyzeResume,
   analyzeResumePDF,
+  getCandidateMatch,
 };

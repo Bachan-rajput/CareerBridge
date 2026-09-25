@@ -8,6 +8,10 @@ function ReceivedApplications() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [candidateMatch, setCandidateMatch] = useState(null);
+  const [aiMatchingId, setAiMatchingId] = useState("");
+  const [aiResults, setAiResults] = useState({});
 
   const fetchApplications = async () => {
     try {
@@ -92,6 +96,52 @@ function ReceivedApplications() {
       setError(error.message || "Something went wrong");
     } finally {
       setUpdatingId("");
+    }
+  };
+
+  const getCandidateMatch = async (applicationId) => {
+    try {
+      setAiMatchingId(applicationId);
+      setError("");
+      setMessage("");
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setError("Please login first.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/ai/candidate-match`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          applicationId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to generate AI Candidate Match",
+        );
+      }
+
+      setAiResults((previousResults) => ({
+        ...previousResults,
+        [applicationId]: data.result,
+      }));
+
+      setMessage("AI Candidate Match generated successfully.");
+    } catch (error) {
+      console.error("AI Candidate Match error:", error);
+      setError(error.message || "Something went wrong");
+    } finally {
+      setAiMatchingId("");
     }
   };
 
@@ -312,6 +362,188 @@ function ReceivedApplications() {
                     </p>
                   )}
                 </div>
+                {/* Candidate Details */}
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedApplication(application);
+                      setCandidateMatch(aiResults[application._id] || null);
+                      setMatchError("");
+                    }}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
+                  >
+                    View Candidate Details
+                  </button>
+                </div>
+
+                {/* AI Candidate Match */}
+                <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        🤖 AI Candidate Match
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Analyze this candidate's skills against the job
+                        requirements using AI.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => getCandidateMatch(application._id)}
+                      disabled={aiMatchingId === application._id}
+                      className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {aiMatchingId === application._id
+                        ? "Analyzing..."
+                        : "Check AI Match"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* AI Candidate Match Result */}
+                {aiResults[application._id] && (
+                  <div className="mt-4 rounded-xl border border-blue-100 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          AI Match Analysis
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          AI-generated candidate and job compatibility analysis.
+                        </p>
+                      </div>
+
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4 border-blue-100 bg-blue-50">
+                        <span className="text-sm font-bold text-blue-700">
+                          {aiResults[application._id].matchScore}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Match Score */}
+                    <div className="mt-5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Match Score
+                        </p>
+
+                        <p className="text-sm font-bold text-blue-700">
+                          {aiResults[application._id].matchScore}%
+                        </p>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-blue-600 transition-all duration-500"
+                          style={{
+                            width: `${aiResults[application._id].matchScore}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Matched Skills */}
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Matched Skills
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {aiResults[application._id].matchedSkills?.length >
+                        0 ? (
+                          aiResults[application._id].matchedSkills.map(
+                            (skill, index) => (
+                              <span
+                                key={index}
+                                className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700"
+                              >
+                                ✓ {skill}
+                              </span>
+                            ),
+                          )
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            No matched skills found.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Missing Skills */}
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Missing Skills
+                      </p>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {aiResults[application._id].missingSkills?.length >
+                        0 ? (
+                          aiResults[application._id].missingSkills.map(
+                            (skill, index) => (
+                              <span
+                                key={index}
+                                className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
+                              >
+                                • {skill}
+                              </span>
+                            ),
+                          )
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            No major missing skills detected.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Strengths */}
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Candidate Strengths
+                      </p>
+
+                      <ul className="mt-2 space-y-2">
+                        {aiResults[application._id].strengths?.map(
+                          (strength, index) => (
+                            <li
+                              key={index}
+                              className="text-sm leading-6 text-slate-700"
+                            >
+                              ✓ {strength}
+                            </li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                        AI Recommendation
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                        {aiResults[application._id].recommendation}
+                      </p>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Analysis
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {aiResults[application._id].reason}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Status Update Actions */}
                 <div className="mt-auto pt-6">
@@ -348,6 +580,283 @@ function ReceivedApplications() {
           </div>
         )}
       </main>
+      {/* Candidate Details Modal */}
+      {selectedApplication && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                  Candidate Profile
+                </p>
+
+                <h2 className="mt-1 text-2xl font-bold text-slate-900">
+                  {selectedApplication.applicant?.name || "Unknown Candidate"}
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {selectedApplication.applicant?.email ||
+                    "Email not available"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedApplication(null)}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Candidate Information */}
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Candidate Name
+                </p>
+
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {selectedApplication.applicant?.name || "Not available"}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Email
+                </p>
+
+                <p className="mt-2 break-all text-sm font-semibold text-slate-900">
+                  {selectedApplication.applicant?.email || "Not available"}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Applied For
+                </p>
+
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {selectedApplication.job?.title || "Not available"}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {selectedApplication.job?.company || "Company not available"}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Current Status
+                </p>
+
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {selectedApplication.status || "Applied"}
+                </p>
+              </div>
+            </div>
+
+            {/* Application Information */}
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Application Information
+              </h3>
+
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Location
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-700">
+                    {selectedApplication.job?.location || "Not specified"}
+                  </p>
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Applied On
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-700">
+                    {selectedApplication.createdAt
+                      ? new Date(
+                          selectedApplication.createdAt,
+                        ).toLocaleDateString("en-IN")
+                      : "Not available"}
+                  </p>
+                </div>
+
+                {selectedApplication.coverLetter && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Cover Letter
+                    </p>
+
+                    <p className="mt-2 whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                      {selectedApplication.coverLetter}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resume */}
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-slate-900">Resume</h3>
+
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                {selectedApplication.resume ? (
+                  <a
+                    href={selectedApplication.resume}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    View Resume ↗
+                  </a>
+                ) : (
+                  <p className="text-sm text-slate-500">No resume provided.</p>
+                )}
+              </div>
+            </div>
+            {/* AI Candidate Match */}
+            {candidateMatch && (
+              <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/50 p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">
+                      AI Candidate Match
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      AI-generated candidate and job compatibility analysis.
+                    </p>
+                  </div>
+
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-blue-200 bg-white text-sm font-bold text-blue-700">
+                    {candidateMatch.matchScore}%
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Match Score
+                    </p>
+
+                    <p className="text-sm font-bold text-blue-700">
+                      {candidateMatch.matchScore}%
+                    </p>
+                  </div>
+
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600"
+                      style={{
+                        width: `${candidateMatch.matchScore}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {candidateMatch.matchedSkills?.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Matched Skills
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {candidateMatch.matchedSkills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700"
+                        >
+                          ✓ {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {candidateMatch.missingSkills?.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Missing Skills
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {candidateMatch.missingSkills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700"
+                        >
+                          • {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {candidateMatch.strengths?.length > 0 && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Candidate Strengths
+                    </p>
+
+                    <div className="mt-2 space-y-2">
+                      {candidateMatch.strengths.map((strength, index) => (
+                        <p
+                          key={index}
+                          className="text-sm leading-6 text-slate-700"
+                        >
+                          ✓ {strength}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {candidateMatch.recommendation && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                      AI Recommendation
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {candidateMatch.recommendation}
+                    </p>
+                  </div>
+                )}
+
+                {candidateMatch.reason && (
+                  <div className="mt-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Analysis
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {candidateMatch.reason}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Close Button */}
+            <div className="mt-7 flex justify-end border-t border-slate-200 pt-5">
+              <button
+                type="button"
+                onClick={() => setSelectedApplication(null)}
+                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

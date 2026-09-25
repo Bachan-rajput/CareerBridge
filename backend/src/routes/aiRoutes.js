@@ -4,6 +4,7 @@ const {
   getJobMatch,
   analyzeResume,
   analyzeResumePDF,
+  getCandidateMatch,
 } = require("../controllers/aiController");
 
 const {
@@ -17,6 +18,9 @@ const router = express.Router();
 
 // AI Job Match
 router.post("/job-match", authMiddleware, getJobMatch);
+
+// AI Candidate Match
+router.post("/candidate-match", authMiddleware, getCandidateMatch);
 
 // AI Resume Analyzer - text
 router.post("/resume-analyze", authMiddleware, analyzeResume);
