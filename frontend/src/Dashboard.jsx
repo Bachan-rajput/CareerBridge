@@ -204,6 +204,71 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* AI Tools */}
+        <section className="mt-10">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-slate-900">AI Tools</h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Use AI-powered tools to improve your job preparation.
+            </p>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            {/* AI Resume Analyzer */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:border-blue-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-lg">
+                🤖
+              </div>
+
+              <h3 className="mt-5 text-lg font-semibold text-slate-900">
+                AI Resume Analyzer
+              </h3>
+
+              <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">
+                Upload your resume and get an AI-generated score, detected
+                skills, strengths and improvement suggestions.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/ai-resume-analyzer";
+                }}
+                className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Analyze Resume
+              </button>
+            </div>
+
+            {/* AI Interview Preparation */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:border-blue-200 hover:shadow-md">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-lg">
+                🎯
+              </div>
+
+              <h3 className="mt-5 text-lg font-semibold text-slate-900">
+                AI Interview Preparation
+              </h3>
+
+              <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">
+                Select a job and get AI-generated technical, HR and job-specific
+                interview questions with answer hints.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/ai-interview-prep";
+                }}
+                className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Start Preparation
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Available Jobs */}
         <section className="mt-10">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

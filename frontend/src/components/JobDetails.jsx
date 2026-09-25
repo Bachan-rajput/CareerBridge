@@ -18,6 +18,11 @@ function JobDetails() {
   const [hasApplied, setHasApplied] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState("");
 
+  // AI Job Match states
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState(null);
+  const [aiError, setAiError] = useState("");
+
   // Get logged-in user
   const savedUser = localStorage.getItem("user");
   const user = savedUser ? JSON.parse(savedUser) : null;
@@ -109,6 +114,55 @@ function JobDetails() {
 
     checkApplication();
   }, [jobId, isRecruiter]);
+
+  // =====================================================
+  // AI JOB MATCH
+  // =====================================================
+  const handleAIJobMatch = async () => {
+    setAiLoading(true);
+    setAiError("");
+    setAiResult(null);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setAiError("Please login as a student to use AI Job Match.");
+        return;
+      }
+
+      if (!jobId) {
+        setAiError("Job ID is missing.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/ai/job-match`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          jobId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to generate AI Job Match");
+      }
+
+      setAiResult(data.result);
+    } catch (error) {
+      console.error("AI Job Match error:", error);
+      setAiError(
+        error.message || "Unable to generate AI Job Match. Please try again.",
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // =====================================================
   // APPLY FOR JOB
@@ -338,6 +392,158 @@ function JobDetails() {
             </p>
           )}
         </section>
+
+        {/* =================================================
+            AI JOB MATCH
+            ONLY STUDENTS CAN SEE THIS
+        ================================================= */}
+        {!isRecruiter && (
+          <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    ✦
+                  </span>
+
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    AI Job Match
+                  </h3>
+                </div>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                  Compare your current skills with this job and get an
+                  AI-generated match score, skill analysis and recommendation.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAIJobMatch}
+                disabled={aiLoading}
+                className="shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {aiLoading ? "Analyzing..." : "Check AI Job Match"}
+              </button>
+            </div>
+
+            {/* AI Error */}
+            {aiError && (
+              <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-sm font-medium text-red-700">{aiError}</p>
+              </div>
+            )}
+
+            {/* AI Result */}
+            {aiResult && (
+              <div className="mt-6 border-t border-slate-100 pt-6">
+                {/* Match Score */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                        AI Match Score
+                      </p>
+
+                      <p className="mt-1 text-sm text-slate-600">
+                        Based on your current profile and this job's
+                        requirements.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full border-4 border-blue-200 bg-white flex items-center justify-center">
+                        <span className="text-sm font-bold text-blue-700">
+                          {aiResult.matchScore}%
+                        </span>
+                      </div>
+
+                      <span className="text-sm font-semibold text-slate-700">
+                        Match
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="mt-5 grid gap-5 md:grid-cols-2">
+                  {/* Matched Skills */}
+                  <div className="rounded-xl border border-slate-200 p-5">
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      Matching Skills
+                    </h4>
+
+                    {aiResult.matchedSkills &&
+                    aiResult.matchedSkills.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {aiResult.matchedSkills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="rounded-md border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700"
+                          >
+                            ✓ {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-500">
+                        No matching skills identified.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Missing Skills */}
+                  <div className="rounded-xl border border-slate-200 p-5">
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      Skills to Improve
+                    </h4>
+
+                    {aiResult.missingSkills &&
+                    aiResult.missingSkills.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {aiResult.missingSkills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-500">
+                        No major skill gaps identified.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recommendation */}
+                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    AI Recommendation
+                  </h4>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {aiResult.recommendation ||
+                      "No recommendation was provided."}
+                  </p>
+                </div>
+
+                {/* Reason */}
+                <div className="mt-4 rounded-xl border border-slate-200 p-5">
+                  <h4 className="text-sm font-semibold text-slate-900">
+                    Match Analysis
+                  </h4>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {aiResult.reason || "No additional analysis available."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* =================================================
             APPLICATION SECTION

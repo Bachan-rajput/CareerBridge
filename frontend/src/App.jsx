@@ -10,6 +10,8 @@ import PostJob from "./components/PostJob";
 import MyJobs from "./components/MyJobs";
 import EditJob from "./components/EditJob";
 import ReceivedApplications from "./components/ReceivedApplications";
+import AIResumeAnalyzer from "./components/AIResumeAnalyzer";
+import AIInterviewPrep from "./components/AIInterviewPrep";
 
 function App() {
   const path = window.location.pathname;
@@ -56,6 +58,22 @@ function App() {
     }
 
     return <Profile />;
+  }
+
+  if (path === "/ai-resume-analyzer") {
+    if (!isLoggedIn || user?.role !== "student") {
+      return <Login />;
+    }
+
+    return <AIResumeAnalyzer />;
+  }
+
+  if (path === "/ai-interview-prep") {
+    if (!isLoggedIn || user?.role !== "student") {
+      return <Login />;
+    }
+
+    return <AIInterviewPrep />;
   }
 
   if (path === "/post-job") {
